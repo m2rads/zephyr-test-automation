@@ -4,10 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zephyr Test Creation Automation</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-    <button id="createTestCase">Get issue description</button>
+    <div class="gt-1">
+        <button id="createTestCase">Generate Test Cases</button>
+        <p id="status" class="hidden">Generating test cases! Please wait...</p>
+    </div>
+
+    <div class="preview">
+        <p id="previewLable">Preview GPT results before commiting changes to Jira</p>
+        <textarea id="gptResult"></textarea>
+
+        <div>
+            <button id="updateJira" disabled>Update Jira</button>
+            <button id="tryAgain" disabled>Generate Again!</button>
+        </div>
+    </div>
+
     <script type="module" src="index.js"></script>
 </body>
 </html>
