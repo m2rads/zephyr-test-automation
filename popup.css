@@ -1,0 +1,32 @@
+
+body {
+    width: 500px;
+    padding: 20px;
+}
+
+body > * {
+    margin: 20px 0;
+}
+
+.preview {
+    display: block;
+}
+
+#gptResult {
+    width: 500px;
+    height: 20rem;
+    margin-bottom: 10px;
+}
+
+.hidden {
+    display: none;
+}
+
+#previewLable {
+    margin: 5px 0;
+    color: #574e4e;
+}
+
+#status {
+    color: rgb(225, 91, 91);
+}
