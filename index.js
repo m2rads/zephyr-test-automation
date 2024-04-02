@@ -7,154 +7,147 @@ let urlVal;
   urlVal = tab.url;
 })();
 
+const gptResultArea = document.getElementById("gptResult")
+const statusLabel = document.getElementById("status")
 
-const testButton = document.getElementById("createTestCase");
-testButton.addEventListener("click", getIssueDescription);
+const generateButton = document.getElementById("createTestCase");
+const updateJiraButton = document.getElementById("updateJira")
+const tryAgainButton = document.getElementById("tryAgain");
+
+generateButton.addEventListener("click", getIssueDescription);
+updateJiraButton.addEventListener("click", updateJira);
+tryAgainButton.addEventListener("click", getIssueDescription);
+
 
 async function getIssueDescription() {
     let n = urlVal.lastIndexOf('/');
     let issueId = urlVal.substring(n + 1);
 
+    generateButton.disabled = true;
+    tryAgainButton.disabled = true;
+    updateJiraButton.disabled = true;
+    statusLabel.classList.remove("hidden");
+
     await fetch(`https://code.bestbuy.com/jira/rest/api/2/issue/${issueId}`)
     .then((response) => response.json())
     .then((data) => {
-        console.log("Issue data:", data);
-        console.log("data: ", data)
-        chrome.runtime.sendMessage({ action: "log", message: data.fields.description });
-        // generatePrompt()
+        // chrome.runtime.sendMessage({ action: "log", message: data.fields.description });
+        const jiraDescription = data.fields.description
+        const urlRegex = /(?:https?|ftp):\/\/[\n\S]+/g;
 
+        // Find all URLs in the description
+        const jiraDescriptionWithoutUrls = jiraDescription.replace(urlRegex, '');
+        generatePrompt(jiraDescriptionWithoutUrls)
     })
     .catch((error) => {
         console.error("Error fetching issue details:", error);
     });
+
+  }
+
+
+function updateJira() {
+  chrome.runtime.sendMessage({ action: "log", message: gptResultArea.value });
+  
+  try {
+    let jsonResult = JSON.parse(gptResultArea.value);
+    chrome.runtime.sendMessage({ action: "log", message: jsonResult });
+
+    jsonResult.forEach((item, index) => {
+      console.log(index)
+      chrome.runtime.sendMessage({ action: "log", message: item.summary });
+    })
+
+  } catch (e) {
+    chrome.runtime.sendMessage({ action: "log", message: e.message });
+
+  }
+
+}
+
+async function generateJiraTestCase(testCaseInfo) {
+  chrome.runtime.sendMessage({ action: "log", message: testCaseInfo.summary });
+  chrome.runtime.sendMessage({ action: "log", message: testCaseInfo.testSteps });
+
 }
 
 function generatePrompt(text) {
   const prompt = `
-      You will be provided with Jira Story description marked with <story><story>. The description has a GWT table marked with ||Given|When|Then|| and each record in a row is delimited by | character like this 
-      |given|then|when|. 
+      You will be provided with a Jira Story description marked with ''' which includes a Given-When-Then (GWT) table. Each row in the GWT table represents a test case.
 
-      Your job is to act as a Test Automation Engineer who is creating zephyr test cases in Jira using this GWT table. 
-      Each row of the GWT table represents one Zephyr test case. 
+      Your task as a Test Automation Engineer is to create Zephyr test cases in Jira based on the GWT table, ensuring comprehensive validation coverage as per the requirements specified in the 'Then' column.
 
-      For instance, you can expect the following example which has two rows: 
+      Here's the format of the GWT table:
 
       ||Given||When||Then||
-      |We want to search vendor logs by SKU|GET:/v1/search?by=SKU&sku=17000000|Expect response: 200 Ok
-      with payload (example):{code:java}
+      |<Given condition>|<When action>|<Expected result and validation actions>|
+
+      Your job is to:
+
+      1. Write a summary of each row to use as the title of the test case.
+
+      2. Create test steps for each test case using the following format:
+        {
+          "step": "<Test step description>",
+          "data": "<Test data or parameters>",
+          "result": "<Expected result and validation actions>"
+        }
+
+      3. Ensure that each validation requirement specified in the 'Then' column has its own test step.
+
+      4. If a validation requires multiple actions or checks, create multiple test steps to cover each action or check separately.
+
+      5. If the expected payload is present in the 'Then' column, include it in the result column of the test step to represent the expected result.
+
+      6. If you identify additional validation steps required beyond those specified in the 'Then' column, include those as well.
+
+      7. Ensure that you consistently provide responses in the form of a JSON array containing information for each test case. The output should adhere to the following format:
+
       [
-         {
-            "createdBy" : "John Doh",
-            "createdDate" : "2024-03-01T00:00:00Z",
-            "departmentId" : 40,
-            "departmentName" : "Electronics",
-            "endDate" : "2024-02-01T00:00:00Z",
-            "fundTypeName" : "Sell-Thru (Markdown)",
-            "fundsAllocation" : "13a Vendor Income, Advertising",
-            "locationType" : "STORES",
-            "lumpAmount" : 3000.99,
-            "merchName" : "Merchant name",
-            "startDate" : "2024-01-26T00:00:00Z",
-            "vendorContactName" : "Lisa Houston",
-            "vendorLogId" : 2,
-            "vendorLogType" : "SKU",
-            "vendorName" : "Solutions 2 Go Inc."
-         }
+        {
+          "summary": "<Title summary>",
+          "testSteps": [ 
+            {
+              "step": "<Test step description>",
+              "data": "<Test data or parameters>",
+              "result": "<Expected result and validation actions> [Expected response payload if present]"
+            },
+            ...
+          ]
+        },
+        ...
       ]
-      {code}|
-      |We want to search vendor logs by USER|GET:/v1/search?by=USER&user=todd|Expect response: 200 Ok
-      with payload (example):{code:java}
-      [
-         {
-            "createdBy" : "todd",
-            "createdDate" : "2024-03-01T00:00:00Z",
-            "departmentId" : 40,
-            "departmentName" : "Electronics",
-            "endDate" : "2024-02-01T00:00:00Z",
-            "fundTypeName" : "Sell-Thru (Markdown)",
-            "fundsAllocation" : "13a Vendor Income, Advertising",
-            "locationType" : "STORES",
-            "lumpAmount" : 3000.99,
-            "merchName" : "Merchant name",
-            "startDate" : "2024-01-26T00:00:00Z",
-            "vendorContactName" : "Lisa Houston",
-            "vendorLogId" : 2,
-            "vendorLogType" : "SKU",
-            "vendorName" : "Solutions 2 Go Inc."
-         }
-      ]
-      {code}|
-      
-      Given the GWT table your task is to do the following actions:
 
-      1 - Write a summary of each row to use as the title of the test case. Use the following summary as an example: 
-      title: <Validate GET: search?by=SKU&sku=18000000 get logs by id>
-
-      2- For each test case, create test steps using the following format: 
-      {
-        "step": "Make Get Request to v1/search?by=SKU&sku=18000000",
-        "data": "set the sku to something that exists in the DB like 18000000",
-        "result": "should recieve status 200 ok with following response payload:
-        [
-          {
-             "createdBy" : "John Doh",
-             "createdDate" : "2024-03-01T00:00:00Z",
-             "departmentId" : 40,
-             "departmentName" : "Electronics",
-             "endDate" : "2024-02-01T00:00:00Z",
-             "fundTypeName" : "Sell-Thru (Markdown)",
-             "fundsAllocation" : "13a Vendor Income, Advertising",
-             "locationType" : "STORES",
-             "lumpAmount" : 3000.99,
-             "merchName" : "Merchant name",
-             "startDate" : "2024-01-26T00:00:00Z",
-             "vendorContactName" : "Lisa Houston",
-             "vendorLogId" : 2,
-             "vendorLogType" : "SKU",
-             "vendorName" : "Solutions 2 Go Inc."
-          }
-       ]  
-        ",
-      },
-      {
-        "step: "validate DB",
-        "test data": "look for Sku 18000000."
-        "result": "There needs to be same amount of entries as you receive in the response payload"
-      }
-
-      3- Return your output for each GWT row in the following json format: 
-      {
-        "summary": "<title summary>"
-        "test steps": [ 
-          {
-            "step": "<>",
-            "data": "<>",
-            "result": "<>",
-          },
-        ]
-      }
-
-      
-      <story>${text}</story>
+      Jira Description: '''${text}'''
   `
+
+  getTestStepsFromJiraIssue(prompt)
 }
 
-// now this is where we are going to train hit our GPTContainer
+// this is where we are going to train hit our GPTContainer
 // and in there we have to prompt engineer our container.
 // clone this repo and run locally: 
-async function getTestStepsFromJiraIssue(jiraDescription) {
+async function getTestStepsFromJiraIssue(prompt) {
   const requestOption = {
     method: "POST",
     headers: {
-      'Content-Type': 'application/jsopn',
+      'Content-Type': 'application/json',
     },
-    body: {"jiraDescription": JSON.stringify(jiraDescription) },
-  }
-  await fetch("https://localhost:8080", requestOption)
-  .then(response => { response.json()})
-  .then(data => chrome.runtime.sendMessage({ action: "log", message: data.fields.description })
-  )
+    body: JSON.stringify({ "jiraPrompt": prompt }),
+  };
 
+  try {
+    const response = await fetch("http://localhost:8080/api/gpt/test-step", requestOption);
+    const data = await response.json();
+    // chrome.runtime.sendMessage({ action: "log", message: data.generatedTestStep });
+    updateJiraButton.disabled = false;
+    tryAgainButton.disabled = false;
+    statusLabel.classList.add("hidden")
+    gptResultArea.value = data.generatedTestStep;
+  } catch (error) {
+    chrome.runtime.sendMessage({ action: "log", message: error.message });
+    statusLabel.innerText = "Oops! An error Occured. Please refresh the page and try again"
+  }
 }
 
 let issueKeys = [];
