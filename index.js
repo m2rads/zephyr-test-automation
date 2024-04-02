@@ -25,7 +25,7 @@ async function getIssueDescription() {
 
     generateButton.disabled = true;
     tryAgainButton.disabled = true;
-    updateJiraButton.disabled = true;
+    // updateJiraButton.disabled = true;
     statusLabel.classList.remove("hidden");
 
     await fetch(`https://code.bestbuy.com/jira/rest/api/2/issue/${issueId}`)
@@ -56,6 +56,9 @@ function updateJira() {
     jsonResult.forEach((item, index) => {
       console.log(index)
       chrome.runtime.sendMessage({ action: "log", message: item.summary });
+      createJiraTestCase(item.summary)
+      // create test step
+      // then link the tests
     })
 
   } catch (e) {
@@ -65,9 +68,34 @@ function updateJira() {
 
 }
 
-async function generateJiraTestCase(testCaseInfo) {
-  chrome.runtime.sendMessage({ action: "log", message: testCaseInfo.summary });
-  chrome.runtime.sendMessage({ action: "log", message: testCaseInfo.testSteps });
+async function createJiraTestCase(summaryTitle) {
+  var issueData = {
+      fields: {
+          project: { key: "UB" },
+          summary: summaryTitle,
+          issuetype: { name: "Test" },
+          description: "Testing jira issue creation",
+          labels: ["test", "automation"],
+          priority: { name: "Lowest" }
+      }
+  };
+
+  var reqBody = issueData;
+  var headers = {"Content-Type": "application/json", "Accept": "application/json"};
+  var reqOptions = {"method": "POST", "headers": headers, "body": JSON.stringify(reqBody)};
+
+  try {
+    const response = await fetch('https://code.bestbuy.com/jira/rest/api/2/issue', reqOptions);
+    const data = await response.json();
+    chrome.runtime.sendMessage({ action: "log", message: data });
+    return data.key;
+  } catch (e) {
+    chrome.runtime.sendMessage({ action: "log", message: e.message });
+  }
+}
+
+async function createJiraTestSteps(issueKey) {
+  
 
 }
 
@@ -208,3 +236,36 @@ function linkTests(issueKeys,idInUrl) {
           .catch(error => console.error(error));
         }
 }
+
+
+
+`
+[
+  {
+    "summary": "CSG Tool submits a Vendor Funding Log with Location Stores as an array",
+    "testSteps": [
+      {
+        "step": "Submit Vendor Funding Log with Location Stores as an array",
+        "data": "Vendor Funding Log JSON payload with Location Stores as an array",
+        "result": "Expect Response: 200 Ok [Response payload: { \"vendorLogId\": \"«new_id»\" }]",
+      },
+      {
+        "step": "Validate MVFS DB entry for VendorLog ID and LocationGroup",
+        "data": "",
+        "result": "MVFS DB contains the VendorLog with ID received in response."
+      },
+      {
+        "step": "Validate LocationGroup in MVFS DB",
+        "data": "",
+        "result": "MVFS DB contains the LocationGroup = *STORES* for VendorLog entry with «new_id»."
+      },
+      {
+        "step": "Validate VendorLogLocationStores Table",
+        "data": "",
+        "result": "VendorLogLocationStores Table contains locationStore1, 4, 18 and has FK VendorLogId = «new_id»."
+      }
+    ]
+  }
+]
+
+`
