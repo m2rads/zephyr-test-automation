@@ -56,9 +56,11 @@ function updateJira() {
     jsonResult.forEach((item, index) => {
       console.log(index)
       chrome.runtime.sendMessage({ action: "log", message: item.summary });
-      createJiraTestCase(item.summary)
+      let issueKey = createJiraTestCase(item.summary)
       // create test step
+      createJiraTestCase(data.testSteps, issueKey);
       // then link the tests
+      linkIssueKeyToStory(storyKey, issueKey);
     })
 
   } catch (e) {
@@ -94,10 +96,25 @@ async function createJiraTestCase(summaryTitle) {
   }
 }
 
-async function createJiraTestSteps(issueKey) {
-  
+async function createJiraTestSteps(steps, issueKey) {
+
+  try {
+    steps.forEach((item, key) => {
+      console.log(key);
+      const reqOption = {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(item),
+      };
+    })
+  } catch (e) {
+    
+  }
 
 }
+
 
 function generatePrompt(text) {
   const prompt = `
@@ -176,47 +193,6 @@ async function getTestStepsFromJiraIssue(prompt) {
     chrome.runtime.sendMessage({ action: "log", message: error.message });
     statusLabel.innerText = "Oops! An error Occured. Please refresh the page and try again"
   }
-}
-
-let issueKeys = [];
-
-async function createTestCases() {
-  let n = urlVal.lastIndexOf('/');
-  let idInUrl = urlVal.substring(n + 1);
-
-  const subtaskDescsAll = document.getElementById('subtaskDescs').value;
-  const LINE_SPLIT_REGEX = /\r\n?|\n/g;
-  let subtaskDescs = subtaskDescsAll.split(LINE_SPLIT_REGEX);
-
-  var issueUpdatesArr = [];
-  for (const subtaskDesc of subtaskDescs) {
-    var subtask = {
-      "fields": {
-        "project": {
-          "key": "UB"
-        },
-        "summary": subtaskDesc,
-        "description": "",
-        "issuetype": {
-          "id": "11332"
-        }
-      }
-    };
-    issueUpdatesArr.push(subtask)
-  }
-
-  var reqBody = {"issueUpdates": issueUpdatesArr};
-  var headers = {"Content-Type": "application/json", "Accept": "application/json", "User-Agent": "dummyValue"};
-  var reqOptions = {"method": "POST", "headers": headers, "body": JSON.stringify(reqBody)};
-
-  document.getElementById("subtaskDescs").value = "Creating Test Cases..."
-
-  const response = await fetch('https://code.bestbuy.com/jira/rest/api/2/issue/bulk', reqOptions);
-  const data = await response.json();
-  issueKeys = data.issues.map(issue => issue.key);
-  document.getElementById("subtaskDescs").value = issueKeys;
-
-    linkTests(issueKeys,idInUrl)
 }
 
 function linkTests(issueKeys,idInUrl) {
