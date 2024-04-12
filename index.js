@@ -47,6 +47,9 @@ async function getIssueDescription() {
 
 
 function updateJira() {
+  let n = urlVal.lastIndexOf('/');
+  let issueId = urlVal.substring(n + 1);
+
   chrome.runtime.sendMessage({ action: "log", message: gptResultArea.value });
   
   try {
@@ -56,25 +59,24 @@ function updateJira() {
     jsonResult.forEach((item, index) => {
       console.log(index)
       chrome.runtime.sendMessage({ action: "log", message: item.summary });
-      let issueKey = createJiraTestCase(item.summary)
-      // create test step
-      createJiraTestCase(data.testSteps, issueKey);
-      // then link the tests
-      linkIssueKeyToStory(storyKey, issueKey);
+      let testKey = createJiraTestCase(item)
+      linkTests( testKey , issueId)
     })
 
   } catch (e) {
-    chrome.runtime.sendMessage({ action: "log", message: e.message });
+    chrome.runtime.sendMessage({ action: "log", message: `error when updating jira: ${e.message}` });
 
   }
 
 }
 
-async function createJiraTestCase(summaryTitle) {
+async function createJiraTestCase(testData) {
+  chrome.runtime.sendMessage({ action: "log", message: testData.summary });
+
   var issueData = {
       fields: {
           project: { key: "UB" },
-          summary: summaryTitle,
+          summary: testData.summary,
           issuetype: { name: "Test" },
           description: "Testing jira issue creation",
           labels: ["test", "automation"],
@@ -90,29 +92,35 @@ async function createJiraTestCase(summaryTitle) {
     const response = await fetch('https://code.bestbuy.com/jira/rest/api/2/issue', reqOptions);
     const data = await response.json();
     chrome.runtime.sendMessage({ action: "log", message: data });
-    return data.key;
-  } catch (e) {
-    chrome.runtime.sendMessage({ action: "log", message: e.message });
-  }
-}
-
-async function createJiraTestSteps(steps, issueKey) {
-
-  try {
-    steps.forEach((item, key) => {
+    data.testSteps.forEach((item, key) => {
       console.log(key);
-      const reqOption = {
+      let reqOption = {
         method: "POST",
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(item),
       };
+      createJiraTestSteps(reqOption, data.id)
     })
+    return data.key;
   } catch (e) {
-    
+    chrome.runtime.sendMessage({ action: "log", message: e.message });
   }
+}
 
+async function createJiraTestSteps(reqOption, issueKey) {
+  chrome.runtime.sendMessage({ action: "log", message: `${steps}` });
+  chrome.runtime.sendMessage({ action: "log", message: `${issueKey}` });
+
+  try {
+    const response = await fetch(`https://code.bestbuy.com/jira/rest/zapi/latest/teststep/${issueKey}`, reqOption);
+    const data = await response.json();
+    chrome.runtime.sendMessage({ action: "log", message: `test steps: ${data}` });
+    // link test case to the original story
+  } catch (e) {
+    chrome.runtime.sendMessage({ action: "log", message: `error when creating test steps: ${e.message}` });
+  }
 }
 
 
@@ -144,7 +152,7 @@ function generatePrompt(text) {
 
       5. If the expected payload is present in the 'Then' column, include it in the result column of the test step to represent the expected result.
 
-      6. If you identify additional validation steps required beyond those specified in the 'Then' column, include those as well.
+      6. Try to identify additional validation steps required beyond those specified in the 'Then' column, include those as well.
 
       7. Ensure that you consistently provide responses in the form of a JSON array containing information for each test case. The output should adhere to the following format:
 
@@ -162,6 +170,9 @@ function generatePrompt(text) {
         },
         ...
       ]
+
+      8. Lastly make sure you do not use any character that is not supported in a json body request such as << and >> characters.
+
 
       Jira Description: '''${text}'''
   `
@@ -195,22 +206,21 @@ async function getTestStepsFromJiraIssue(prompt) {
   }
 }
 
-function linkTests(issueKeys,idInUrl) {
+function linkTests(issueKey,idInUrl) {
 
     var linkType = { "name": "Relates" };
     var outwardIssue = { "key": idInUrl };
 
-      for (const key of issueKeys) {
-        const inwardIssue = { "key": key };
-        const payload = { "type": linkType, "inwardIssue": inwardIssue, "outwardIssue": outwardIssue };
-        const headers = { "Content-Type": "application/json", "Accept": "application/json", "User-Agent": "dummyValue" };
-        const options = { "method": "POST", "headers": headers, "body": JSON.stringify(payload) };
+    const inwardIssue = { "key": key };
+    const payload = { "type": linkType, "inwardIssue": inwardIssue, "outwardIssue": outwardIssue };
+    const headers = { "Content-Type": "application/json", "Accept": "application/json", "User-Agent": "dummyValue" };
+    const options = { "method": "POST", "headers": headers, "body": JSON.stringify(payload) };
 
-        fetch('https://code.bestbuy.com/jira/rest/api/2/issueLink', options)
-          .then(response => response.json())
-          .then(data => console.log(data))
-          .catch(error => console.error(error));
-        }
+    fetch('https://code.bestbuy.com/jira/rest/api/2/issueLink', options)
+      .then(response => response.json())
+      .then(data => console.log(data))
+      .catch(error => console.error(error));
+      
 }
 
 
