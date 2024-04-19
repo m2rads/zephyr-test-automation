@@ -1,13 +1,16 @@
 {
     "manifest_version": 3,
     "name": "Zephyr Test Creation Automation",
-    "description": "Create Zephyr Test Cases Automatically - given GWT Table",
-    "version": "0.0.2",
+    "description": "Automation Zephyr Test Cases",
+    "version": "0.0.1",
     "icons": {
       "64": "icons/jira-logo.png"
     },
     "background": {
       "service_worker": "background.js"
+    },
+    "side_panel": {
+      "default_path": "sidepanel.html"
     },
     "content_scripts": [
       {
@@ -18,7 +21,7 @@
     "permissions": [
       "tabs",
       "activeTab",
-      "notifications"
+      "sidePanel"
     ],
     "host_permissions": [
       "https://code.bestbuy.com/jira/rest/api/2/*"
@@ -35,7 +38,6 @@
       "default_icon": {
         "64": "icons/jira-logo.png"
       },
-      "default_popup": "popup.html",
       "default_title": "Zephys Automation"
     }
   }
