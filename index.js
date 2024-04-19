@@ -31,7 +31,6 @@ async function getIssueDescription() {
     await fetch(`https://code.bestbuy.com/jira/rest/api/2/issue/${issueId}`)
     .then((response) => response.json())
     .then((data) => {
-        // chrome.runtime.sendMessage({ action: "log", message: data.fields.description });
         const jiraDescription = data.fields.description
         const urlRegex = /(?:https?|ftp):\/\/[\n\S]+/g;
 
@@ -47,33 +46,21 @@ async function getIssueDescription() {
 
 
 function updateJira() {
-  let n = urlVal.lastIndexOf('/');
-  let issueId = urlVal.substring(n + 1);
-
-  chrome.runtime.sendMessage({ action: "log", message: gptResultArea.value });
-  
   try {
-    let jsonResult = JSON.parse(gptResultArea.value);
-    chrome.runtime.sendMessage({ action: "log", message: jsonResult });
+    let jsonResults = JSON.parse(gptResultArea.value);
 
-    jsonResult.forEach((item, index) => {
-      console.log(index)
-      chrome.runtime.sendMessage({ action: "log", message: item.summary });
-      let testKey = createJiraTestCase(item)
-      linkTests( testKey , issueId)
+    jsonResults.forEach((item, key) => {
+      console.log(key)
+      createJiraTestCase(item)
     })
 
   } catch (e) {
     chrome.runtime.sendMessage({ action: "log", message: `error when updating jira: ${e.message}` });
-
   }
-
 }
 
 async function createJiraTestCase(testData) {
-  chrome.runtime.sendMessage({ action: "log", message: testData.summary });
-
-  var issueData = {
+  var reqBody = {
       fields: {
           project: { key: "UB" },
           summary: testData.summary,
@@ -84,15 +71,15 @@ async function createJiraTestCase(testData) {
       }
   };
 
-  var reqBody = issueData;
   var headers = {"Content-Type": "application/json", "Accept": "application/json"};
   var reqOptions = {"method": "POST", "headers": headers, "body": JSON.stringify(reqBody)};
 
   try {
     const response = await fetch('https://code.bestbuy.com/jira/rest/api/2/issue', reqOptions);
     const data = await response.json();
-    chrome.runtime.sendMessage({ action: "log", message: data });
-    data.testSteps.forEach((item, key) => {
+    let testCaseKey = data.key;
+    let testCaseId = data.id
+    for (const [key, item] of testData.testSteps.entries()) {
       console.log(key);
       let reqOption = {
         method: "POST",
@@ -101,23 +88,18 @@ async function createJiraTestCase(testData) {
         },
         body: JSON.stringify(item),
       };
-      createJiraTestSteps(reqOption, data.id)
-    })
-    return data.key;
+      await createJiraTestSteps(reqOption, testCaseId);
+    }
+    await linkTests(testCaseKey)
   } catch (e) {
-    chrome.runtime.sendMessage({ action: "log", message: e.message });
+    chrome.runtime.sendMessage({ action: "log", message: `Error processing test step ${key}: ${error.message}`});
   }
 }
 
-async function createJiraTestSteps(reqOption, issueKey) {
-  chrome.runtime.sendMessage({ action: "log", message: `${steps}` });
-  chrome.runtime.sendMessage({ action: "log", message: `${issueKey}` });
-
+async function createJiraTestSteps(reqOption, testCaseId) {
   try {
-    const response = await fetch(`https://code.bestbuy.com/jira/rest/zapi/latest/teststep/${issueKey}`, reqOption);
+    const response = await fetch(`https://code.bestbuy.com/jira/rest/zapi/latest/teststep/${testCaseId}`, reqOption);
     const data = await response.json();
-    chrome.runtime.sendMessage({ action: "log", message: `test steps: ${data}` });
-    // link test case to the original story
   } catch (e) {
     chrome.runtime.sendMessage({ action: "log", message: `error when creating test steps: ${e.message}` });
   }
@@ -180,7 +162,7 @@ function generatePrompt(text) {
   getTestStepsFromJiraIssue(prompt)
 }
 
-// this is where we are going to train hit our GPTContainer
+// this is where we are going to hit our GPTContainer
 // and in there we have to prompt engineer our container.
 // clone this repo and run locally: 
 async function getTestStepsFromJiraIssue(prompt) {
@@ -206,52 +188,31 @@ async function getTestStepsFromJiraIssue(prompt) {
   }
 }
 
-function linkTests(issueKey,idInUrl) {
+async function linkTests(testCaseKey) {
+  let n = urlVal.lastIndexOf('/');
+  let idInUrl = urlVal.substring(n + 1);
+  chrome.runtime.sendMessage({ action: "log", message: `testCaseKey: ${testCaseKey}` });
 
-    var linkType = { "name": "Relates" };
-    var outwardIssue = { "key": idInUrl };
+  var linkType = { "name": "Relates" };
+  var outwardIssue = { "key": idInUrl };
+  const inwardIssue = { "key": testCaseKey };
+  const payload = { "type": linkType, "inwardIssue": inwardIssue, "outwardIssue": outwardIssue };
+  const headers = { "Content-Type": "application/json", "Accept": "application/json", "User-Agent": "dummyValue" };
+  const options = { "method": "POST", "headers": headers, "body": JSON.stringify(payload) };
 
-    const inwardIssue = { "key": key };
-    const payload = { "type": linkType, "inwardIssue": inwardIssue, "outwardIssue": outwardIssue };
-    const headers = { "Content-Type": "application/json", "Accept": "application/json", "User-Agent": "dummyValue" };
-    const options = { "method": "POST", "headers": headers, "body": JSON.stringify(payload) };
-
-    fetch('https://code.bestbuy.com/jira/rest/api/2/issueLink', options)
-      .then(response => response.json())
-      .then(data => console.log(data))
-      .catch(error => console.error(error));
-      
-}
-
-
-
-`
-[
-  {
-    "summary": "CSG Tool submits a Vendor Funding Log with Location Stores as an array",
-    "testSteps": [
-      {
-        "step": "Submit Vendor Funding Log with Location Stores as an array",
-        "data": "Vendor Funding Log JSON payload with Location Stores as an array",
-        "result": "Expect Response: 200 Ok [Response payload: { \"vendorLogId\": \"«new_id»\" }]",
-      },
-      {
-        "step": "Validate MVFS DB entry for VendorLog ID and LocationGroup",
-        "data": "",
-        "result": "MVFS DB contains the VendorLog with ID received in response."
-      },
-      {
-        "step": "Validate LocationGroup in MVFS DB",
-        "data": "",
-        "result": "MVFS DB contains the LocationGroup = *STORES* for VendorLog entry with «new_id»."
-      },
-      {
-        "step": "Validate VendorLogLocationStores Table",
-        "data": "",
-        "result": "VendorLogLocationStores Table contains locationStore1, 4, 18 and has FK VendorLogId = «new_id»."
+  try {
+    const response = await fetch('https://code.bestbuy.com/jira/rest/api/2/issueLink', options);
+    if (response.ok) {
+      if (response.headers.get('Content-Length') === '0' || response.headers.get('Content-Type') !== 'application/json') {
+        console.log("link test result: No content");
+      } else {
+        const data = await response.json();
+        chrome.runtime.sendMessage({ action: "log", message: `link test result: ${JSON.stringify(data)}` });
       }
-    ]
+    } else {
+      throw new Error(`HTTP error, status = ${response.status}`);
+    }
+  } catch (error) {
+    chrome.runtime.sendMessage({ action: "log", message: `error when linking test: ${error}` });
   }
-]
-
-`
+}
