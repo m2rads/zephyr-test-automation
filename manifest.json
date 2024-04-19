@@ -1,6 +1,6 @@
 {
     "manifest_version": 3,
-    "name": "Zephyr Test Creation Automation",
+    "name": "Zephyr Test Automation",
     "description": "Automation Zephyr Test Cases",
     "version": "0.0.1",
     "icons": {
