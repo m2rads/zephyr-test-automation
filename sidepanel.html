@@ -9,7 +9,10 @@
 <body>
     <div class="gt-1">
         <button id="createTestCase">Generate Test Cases</button>
-        <p id="status" class="hidden">Generating test cases! Please wait...</p>
+        <div class="loading">
+            <p id="status" class="hidden">Generating test cases! Please wait... </p>
+            <div id="spin-1" class="spinner hidden"></div>
+        </div>
     </div>
 
     <div class="preview">
@@ -18,7 +21,7 @@
 
         <div>
             <button id="updateJira">Update Jira</button>
-            <button id="tryAgain" disabled>Generate Again!</button>
+            <button id="clearBox">Clear Preview</button>
         </div>
     </div>
 

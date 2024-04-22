@@ -9,25 +9,27 @@ let urlVal;
 
 const gptResultArea = document.getElementById("gptResult")
 const statusLabel = document.getElementById("status")
+const spinner_1 = document.getElementById("spin-1")
 
 const generateButton = document.getElementById("createTestCase");
 const updateJiraButton = document.getElementById("updateJira")
-const tryAgainButton = document.getElementById("tryAgain");
+const clear = document.getElementById("clearBox");
 
 generateButton.addEventListener("click", getIssueDescription);
 updateJiraButton.addEventListener("click", updateJira);
-tryAgainButton.addEventListener("click", getIssueDescription);
+clear.addEventListener("click", );
 
+function clearPreviewBox() {
+  gptResultArea.value = "";
+}
 
 async function getIssueDescription() {
     let n = urlVal.lastIndexOf('/');
     let issueId = urlVal.substring(n + 1);
 
-    generateButton.disabled = true;
-    tryAgainButton.disabled = true;
-    // updateJiraButton.disabled = true;
     statusLabel.classList.remove("hidden");
-
+    spinner_1.classList.remove("hidden");
+    
     await fetch(`https://code.bestbuy.com/jira/rest/api/2/issue/${issueId}`)
     .then((response) => response.json())
     .then((data) => {
@@ -47,6 +49,7 @@ async function getIssueDescription() {
 
 function updateJira() {
   try {
+    spinner_1.classList.remove("hidden");
     let jsonResults = JSON.parse(gptResultArea.value);
 
     jsonResults.forEach((item, key) => {
@@ -56,6 +59,7 @@ function updateJira() {
 
   } catch (e) {
     chrome.runtime.sendMessage({ action: "log", message: `error when updating jira: ${e.message}` });
+    spinner_1.classList.add("hidden");
   }
 }
 
@@ -179,8 +183,9 @@ async function getTestStepsFromJiraIssue(prompt) {
     const data = await response.json();
     // chrome.runtime.sendMessage({ action: "log", message: data.generatedTestStep });
     updateJiraButton.disabled = false;
-    tryAgainButton.disabled = false;
     statusLabel.classList.add("hidden")
+    spinner_1.classList.add("hidden");
+
     gptResultArea.value = data.generatedTestStep;
   } catch (error) {
     chrome.runtime.sendMessage({ action: "log", message: error.message });
@@ -205,6 +210,7 @@ async function linkTests(testCaseKey) {
     if (response.ok) {
       if (response.headers.get('Content-Length') === '0' || response.headers.get('Content-Type') !== 'application/json') {
         console.log("link test result: No content");
+        spinner_1.classList.add("hidden");
       } else {
         const data = await response.json();
         chrome.runtime.sendMessage({ action: "log", message: `link test result: ${JSON.stringify(data)}` });
