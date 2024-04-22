@@ -209,8 +209,8 @@ async function linkTests(testCaseKey) {
     const response = await fetch('https://code.bestbuy.com/jira/rest/api/2/issueLink', options);
     if (response.ok) {
       if (response.headers.get('Content-Length') === '0' || response.headers.get('Content-Type') !== 'application/json') {
-        console.log("link test result: No content");
         spinner_1.classList.add("hidden");
+        refreshCurrentTab();
       } else {
         const data = await response.json();
         chrome.runtime.sendMessage({ action: "log", message: `link test result: ${JSON.stringify(data)}` });
@@ -221,4 +221,14 @@ async function linkTests(testCaseKey) {
   } catch (error) {
     chrome.runtime.sendMessage({ action: "log", message: `error when linking test: ${error}` });
   }
+}
+
+
+function refreshCurrentTab() {
+  chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+    var currentTab = tabs[0];
+    if (currentTab && currentTab.id) {
+      chrome.tabs.reload(currentTab.id);
+    }
+  });
 }
