@@ -17,7 +17,7 @@ const clear = document.getElementById("clearBox");
 
 generateButton.addEventListener("click", getIssueDescription);
 updateJiraButton.addEventListener("click", updateJira);
-clear.addEventListener("click", );
+clear.addEventListener("click", clearPreviewBox);
 
 function clearPreviewBox() {
   gptResultArea.value = "";
