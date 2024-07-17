@@ -14,7 +14,7 @@
     },
     "content_scripts": [
       {
-        "matches": ["https://*.code.bestbuy.com/*"],
+        "matches": ["https://*.jira.tools.bestbuy.com/*"],
         "js": ["content-script.js"]
       }
     ],
