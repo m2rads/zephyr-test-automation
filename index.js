@@ -30,7 +30,7 @@ async function getIssueDescription() {
     statusLabel.classList.remove("hidden");
     spinner_1.classList.remove("hidden");
     
-    await fetch(`https://jira.tools.bestbuy.com/jira/rest/api/2/issue/${issueId}`)
+    await fetch(`https://jira.tools.bestbuy.com/rest/api/2/issue/${issueId}`)
     .then((response) => response.json())
     .then((data) => {
         const jiraDescription = data.fields.description
@@ -79,7 +79,7 @@ async function createJiraTestCase(testData) {
   var reqOptions = {"method": "POST", "headers": headers, "body": JSON.stringify(reqBody)};
 
   try {
-    const response = await fetch('https://jira.tools.bestbuy.com/jira/rest/api/2/issue', reqOptions);
+    const response = await fetch('https://jira.tools.bestbuy.com/rest/api/2/issue', reqOptions);
     const data = await response.json();
     let testCaseKey = data.key;
     let testCaseId = data.id
@@ -102,7 +102,7 @@ async function createJiraTestCase(testData) {
 
 async function createJiraTestSteps(reqOption, testCaseId) {
   try {
-    const response = await fetch(`https://jira.tools.bestbuy.com/jira/rest/zapi/latest/teststep/${testCaseId}`, reqOption);
+    const response = await fetch(`https://jira.tools.bestbuy.com/rest/zapi/latest/teststep/${testCaseId}`, reqOption);
     const data = await response.json();
   } catch (e) {
     chrome.runtime.sendMessage({ action: "log", message: `error when creating test steps: ${e.message}` });
@@ -206,7 +206,7 @@ async function linkTests(testCaseKey) {
   const options = { "method": "POST", "headers": headers, "body": JSON.stringify(payload) };
 
   try {
-    const response = await fetch('https://jira.tools.bestbuy.com/jira/rest/api/2/issueLink', options);
+    const response = await fetch('https://jira.tools.bestbuy.com/rest/api/2/issueLink', options);
     if (response.ok) {
       if (response.headers.get('Content-Length') === '0' || response.headers.get('Content-Type') !== 'application/json') {
         spinner_1.classList.add("hidden");

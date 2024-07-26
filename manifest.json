@@ -14,7 +14,7 @@
     },
     "content_scripts": [
       {
-        "matches": ["https://*.jira.tools.bestbuy.com/*"],
+        "matches": ["https://jira.tools.bestbuy.com/rest/api/2/*"],
         "js": ["content-script.js"]
       }
     ],
@@ -24,14 +24,14 @@
       "sidePanel"
     ],
     "host_permissions": [
-      "https://code.bestbuy.com/jira/rest/api/2/*"
+      "https://jira.tools.bestbuy.com/rest/api/2/*"
     ],
     "web_accessible_resources": [
       {
         "resources": [
           
         ],
-        "matches": ["https://*.code.bestbuy.com/*"]
+        "matches": ["https://jira.tools.bestbuy.com/*"]
       }
     ],
     "action": {
