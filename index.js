@@ -14,13 +14,73 @@ const spinner_1 = document.getElementById("spin-1")
 const generateButton = document.getElementById("createTestCase");
 const updateJiraButton = document.getElementById("updateJira")
 const clear = document.getElementById("clearBox");
+const searchButton = document.getElementById("searchButton");
+const searchQuery = document.getElementById("searchQuery");
 
 generateButton.addEventListener("click", getIssueDescription);
 updateJiraButton.addEventListener("click", updateJira);
 clear.addEventListener("click", clearPreviewBox);
+searchButton.addEventListener("click", searchJira);
 
 function clearPreviewBox() {
   gptResultArea.value = "";
+}
+
+async function searchJira() {
+  statusLabel.classList.remove("hidden");
+  spinner_1.classList.remove("hidden");
+  
+  const jql = searchQuery.value;
+  let startAt = 0;
+  const maxResults = 50; // Increased for efficiency, adjust if needed
+  let totalIssues = [];
+  
+  try {
+      while (true) {
+          const response = await fetch('https://jira.tools.bestbuy.com/rest/api/2/search', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json'
+              },
+              body: JSON.stringify({
+                  jql: jql,
+                  startAt: startAt,
+                  maxResults: maxResults,
+                  fields: ['key', 'summary', 'description']
+              })
+          });
+
+          if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const data = await response.json();
+          totalIssues = totalIssues.concat(data.issues);
+
+          if (totalIssues.length >= data.total) {
+              break; // We've retrieved all issues
+          }
+
+          startAt += data.issues.length;
+      }
+
+      let result = `Total issues found: ${totalIssues.length}\n\n`;
+      
+      for (const issue of totalIssues) {
+          result += `Key: ${issue.key}\n`;
+          result += `Summary: ${issue.fields.summary}\n`;
+          result += `Description: ${issue.fields.description}\n\n`;
+      }
+
+      gptResultArea.value = result;
+  } catch (error) {
+      console.error("Error searching Jira:", error);
+      gptResultArea.value = `Error searching Jira: ${error.message}`;
+  } finally {
+      statusLabel.classList.add("hidden");
+      spinner_1.classList.add("hidden");
+  }
 }
 
 async function getIssueDescription() {
